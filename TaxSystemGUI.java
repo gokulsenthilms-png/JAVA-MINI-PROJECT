@@ -1,137 +1,155 @@
+```java
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.io.*;
 
 class Person {
     protected String name;
-    Person(String name) { this.name = name; }
+
+    Person(String name) {
+        this.name = name;
+    }
 }
 
 class TaxPayer extends Person {
     private double income;
-    TaxPayer(String name, double income) { super(name); this.income = income; }
-    public double getIncome() { return income; }
-    public void setIncome(double income) { this.income = income; }
-    public String getName() { return name; }
-}
+    private double deduction;
 
-class TaxCalculator {
-    public double calculateTax(double income) {
-        if (income < 250000) return 0;
-        else if (income < 500000) return income * 0.05;
-        else if (income < 1000000) return income * 0.1;
-        else return income * 0.2;
+    TaxPayer(String name, double income, double deduction) {
+        super(name);
+        this.income = income;
+        this.deduction = deduction;
     }
 
-    public String detectFraud(double income, double tax) {
-        if (income > 1000000 && tax < income * 0.1) return "⚠ Suspicious Income Detected!";
-        else return "No suspicious activity.";
+    public double calculateTaxableIncome() {
+        return Math.max(0, income - deduction);
+    }
+
+    public double calculateTax() {
+        double taxableIncome = calculateTaxableIncome();
+        double tax = 0;
+
+        // Simplified tax slabs for demonstration
+        if (taxableIncome > 1000000) {
+            tax += (taxableIncome - 1000000) * 0.30;
+            taxableIncome = 1000000;
+        }
+
+        if (taxableIncome > 500000) {
+            tax += (taxableIncome - 500000) * 0.20;
+            taxableIncome = 500000;
+        }
+
+        if (taxableIncome > 250000) {
+            tax += (taxableIncome - 250000) * 0.05;
+        }
+
+        return tax;
     }
 }
 
-public class TaxSystemGUI extends JFrame {
-    private JTextField nameField, incomeField;
-    private JTextArea outputArea;
-    private TaxPayer tp;
-    private TaxCalculator calc;
+public class IncomeTaxSystem extends JFrame implements ActionListener {
 
-    public TaxSystemGUI() {
-        setTitle("Income Tax Estimation and Detection System");
-        setSize(480, 420); // Quick Fix: Increased height slightly
+    JTextField nameField, incomeField, deductionField;
+    JTextArea resultArea;
+    JButton calculateButton, clearButton;
+
+    IncomeTaxSystem() {
+        setTitle("Income Tax Estimation and Deduction System");
+        setSize(600, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        
-        // Use a container panel with padding
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10)); // Gap between main areas
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15)); // Margin around window
+        setLocationRelativeTo(null);
 
-        calc = new TaxCalculator();
+        // Main panel
+        JPanel panel = new JPanel();
+        panel.setLayout(new GridLayout(0, 2, 10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Input Panel (compacted within a panel)
-        JPanel inputContainer = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JPanel inputPanel = new JPanel(new GridLayout(2, 2, 8, 8)); // Gap between fields
-        inputPanel.add(new JLabel("Name:"));
-        nameField = new JTextField(15); // Quick Fix: Set column size
-        inputPanel.add(nameField);
-        inputPanel.add(new JLabel("Income:"));
-        incomeField = new JTextField(15); // Quick Fix: Set column size
-        inputPanel.add(incomeField);
-        inputContainer.add(inputPanel);
-        mainPanel.add(inputContainer, BorderLayout.NORTH);
+        JLabel title = new JLabel(
+            "INCOME TAX ESTIMATION SYSTEM",
+            JLabel.CENTER
+        );
+        title.setFont(new Font("Arial", Font.BOLD, 20));
+        title.setForeground(Color.BLUE);
 
-        // Buttons Panel (more spacing)
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10)); // Gap around buttons
-        JButton enterBtn = new JButton("Enter Details");
-        JButton calcBtn = new JButton("Calculate Tax");
-        JButton detectBtn = new JButton("Detect Fraud");
-        JButton saveBtn = new JButton("Save to File");
-        buttonPanel.add(enterBtn);
-        buttonPanel.add(calcBtn);
-        buttonPanel.add(detectBtn);
-        buttonPanel.add(saveBtn);
-        mainPanel.add(buttonPanel, BorderLayout.CENTER);
+        nameField = new JTextField();
+        incomeField = new JTextField();
+        deductionField = new JTextField();
 
-        // Output Area (properly sized)
-        outputArea = new JTextArea(10, 30); // Quick Fix: Fixed size
-        outputArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(outputArea);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("Output"));
-        mainPanel.add(scrollPane, BorderLayout.SOUTH);
+        panel.add(new JLabel("Taxpayer Name:"));
+        panel.add(nameField);
 
-        add(mainPanel); // Add the structured container to the frame
+        panel.add(new JLabel("Annual Income (Rs.):"));
+        panel.add(incomeField);
 
-        // Button Actions
-        enterBtn.addActionListener(e -> enterDetails());
-        calcBtn.addActionListener(e -> calculateTax());
-        detectBtn.addActionListener(e -> detectFraud());
-        saveBtn.addActionListener(e -> saveToFile());
+        panel.add(new JLabel("Total Deductions (Rs.):"));
+        panel.add(deductionField);
+
+        calculateButton = new JButton("Calculate Tax");
+        clearButton = new JButton("Clear");
+
+        panel.add(calculateButton);
+        panel.add(clearButton);
+
+        resultArea = new JTextArea(8, 30);
+        resultArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        resultArea.setEditable(false);
+
+        JScrollPane scrollPane = new JScrollPane(resultArea);
+
+        calculateButton.addActionListener(this);
+
+        clearButton.addActionListener(e -> {
+            nameField.setText("");
+            incomeField.setText("");
+            deductionField.setText("");
+            resultArea.setText("");
+        });
+
+        setLayout(new BorderLayout(10, 10));
+        add(title, BorderLayout.NORTH);
+        add(panel, BorderLayout.CENTER);
+        add(scrollPane, BorderLayout.SOUTH);
 
         setVisible(true);
     }
 
-    private void enterDetails() {
+    public void actionPerformed(ActionEvent e) {
         try {
-            String name = nameField.getText();
+            String name = nameField.getText().trim();
             double income = Double.parseDouble(incomeField.getText());
-            tp = new TaxPayer(name, income);
-            outputArea.setText("Details Entered!\nName: " + name + "\nIncome: " + income);
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Enter valid income!", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
+            double deduction = Double.parseDouble(deductionField.getText());
 
-    private void calculateTax() {
-        if (tp == null) JOptionPane.showMessageDialog(this, "Enter details first!", "Warning", JOptionPane.WARNING_MESSAGE);
-        else {
-            double tax = calc.calculateTax(tp.getIncome());
-            outputArea.append("\nCalculated Tax: " + tax);
-        }
-    }
-
-    private void detectFraud() {
-        if (tp == null) JOptionPane.showMessageDialog(this, "Enter details first!", "Warning", JOptionPane.WARNING_MESSAGE);
-        else {
-            double tax = calc.calculateTax(tp.getIncome());
-            String result = calc.detectFraud(tp.getIncome(), tax);
-            outputArea.append("\n" + result);
-        }
-    }
-
-    private void saveToFile() {
-        if (tp == null) JOptionPane.showMessageDialog(this, "Enter details first!", "Warning", JOptionPane.WARNING_MESSAGE);
-        else {
-            try {
-                FileWriter fw = new FileWriter("taxdata.txt", true);
-                fw.write("Name: " + tp.getName() + ", Income: " + tp.getIncome() + "\n");
-                fw.close();
-                outputArea.append("\nSaved to file!");
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(this, "File error!", "Error", JOptionPane.ERROR_MESSAGE);
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                    this, "Please enter the taxpayer name."
+                );
+                return;
             }
-        }
-    }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(TaxSystemGUI::new);
-    }
-}
+            if (income < 0 || deduction < 0) {
+                JOptionPane.showMessageDialog(
+                    this, "Income and deductions cannot be negative."
+                );
+                return;
+            }
+
+            if (deduction > income) {
+                JOptionPane.showMessageDialog(
+                    this, "Deductions cannot exceed annual income."
+                );
+                return;
+            }
+
+            TaxPayer taxpayer = new TaxPayer(name, income, deduction);
+
+            double taxableIncome = taxpayer.calculateTaxableIncome();
+            double tax = taxpayer.calculateTax();
+
+            resultArea.setText(
+                "===== INCOME TAX REPORT =====\n\n" +
+                "Taxpayer Name   : " + name + "\n" +
+                String.format("Annual Income   : Rs. %.2f%n", income) +
+                String.format("Total Deductions: Rs. %.2f%n", deduction) +
+                String.format("Taxable Income
+```
