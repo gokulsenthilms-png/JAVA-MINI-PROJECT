@@ -1,155 +1,269 @@
-
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
+import java.text.NumberFormat;
+import java.util.Locale;
 
-class Person {
-    protected String name;
+public class IncomeTaxSystem extends JFrame {
 
-    Person(String name) {
-        this.name = name;
-    }
-}
+    private JTextField nameField;
+    private JTextField incomeField;
+    private JTextField deductionField;
+    private JTextArea resultArea;
 
-class TaxPayer extends Person {
-    private double income;
-    private double deduction;
-
-    TaxPayer(String name, double income, double deduction) {
-        super(name);
-        this.income = income;
-        this.deduction = deduction;
-    }
-
-    public double calculateTaxableIncome() {
-        return Math.max(0, income - deduction);
-    }
-
-    public double calculateTax() {
-        double taxableIncome = calculateTaxableIncome();
-        double tax = 0;
-
-        // Simplified tax slabs for demonstration
-        if (taxableIncome > 1000000) {
-            tax += (taxableIncome - 1000000) * 0.30;
-            taxableIncome = 1000000;
-        }
-
-        if (taxableIncome > 500000) {
-            tax += (taxableIncome - 500000) * 0.20;
-            taxableIncome = 500000;
-        }
-
-        if (taxableIncome > 250000) {
-            tax += (taxableIncome - 250000) * 0.05;
-        }
-
-        return tax;
-    }
-}
-
-public class IncomeTaxSystem extends JFrame implements ActionListener {
-
-    JTextField nameField, incomeField, deductionField;
-    JTextArea resultArea;
-    JButton calculateButton, clearButton;
-
-    IncomeTaxSystem() {
-        setTitle("Income Tax Estimation and Deduction System");
-        setSize(600, 500);
+    public IncomeTaxSystem() {
+        setTitle("Income Tax Estimation and Detection System");
+        setSize(650, 560);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        setResizable(false);
 
-        // Main panel
-        JPanel panel = new JPanel();
-        panel.setLayout(new GridLayout(0, 2, 10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBackground(new Color(240, 247, 255));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
 
-        JLabel title = new JLabel(
-            "INCOME TAX ESTIMATION SYSTEM",
-            JLabel.CENTER
+        JLabel titleLabel = new JLabel(
+                "INCOME TAX ESTIMATION SYSTEM",
+                SwingConstants.CENTER
         );
-        title.setFont(new Font("Arial", Font.BOLD, 20));
-        title.setForeground(Color.BLUE);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setForeground(new Color(35, 75, 135));
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+
+        JPanel formPanel = new JPanel(new GridLayout(3, 2, 10, 15));
+        formPanel.setBackground(new Color(240, 247, 255));
 
         nameField = new JTextField();
         incomeField = new JTextField();
         deductionField = new JTextField();
 
-        panel.add(new JLabel("Taxpayer Name:"));
-        panel.add(nameField);
+        formPanel.add(new JLabel("Taxpayer Name:"));
+        formPanel.add(nameField);
 
-        panel.add(new JLabel("Annual Income (Rs.):"));
-        panel.add(incomeField);
+        formPanel.add(new JLabel("Annual Income (Rs.):"));
+        formPanel.add(incomeField);
 
-        panel.add(new JLabel("Total Deductions (Rs.):"));
-        panel.add(deductionField);
+        formPanel.add(new JLabel("Total Deductions (Rs.):"));
+        formPanel.add(deductionField);
 
-        calculateButton = new JButton("Calculate Tax");
-        clearButton = new JButton("Clear");
+        JPanel buttonPanel = new JPanel(
+                new FlowLayout(FlowLayout.CENTER, 10, 10)
+        );
+        buttonPanel.setBackground(new Color(240, 247, 255));
 
-        panel.add(calculateButton);
-        panel.add(clearButton);
+        JButton estimateButton = new JButton("Estimate Tax");
+        JButton detectButton = new JButton("Detect / Verify");
+        JButton clearButton = new JButton("Clear");
+        JButton exitButton = new JButton("Exit");
 
-        resultArea = new JTextArea(8, 30);
-        resultArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        buttonPanel.add(estimateButton);
+        buttonPanel.add(detectButton);
+        buttonPanel.add(clearButton);
+        buttonPanel.add(exitButton);
+
+        resultArea = new JTextArea(10, 45);
         resultArea.setEditable(false);
+        resultArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
+        resultArea.setLineWrap(true);
+        resultArea.setWrapStyleWord(true);
 
         JScrollPane scrollPane = new JScrollPane(resultArea);
+        scrollPane.setBorder(
+                BorderFactory.createTitledBorder("System Report")
+        );
 
-        calculateButton.addActionListener(this);
+        JPanel centerPanel = new JPanel(new BorderLayout(10, 15));
+        centerPanel.setBackground(new Color(240, 247, 255));
+        centerPanel.add(formPanel, BorderLayout.NORTH);
+        centerPanel.add(buttonPanel, BorderLayout.CENTER);
+        centerPanel.add(scrollPane, BorderLayout.SOUTH);
 
-        clearButton.addActionListener(e -> {
-            nameField.setText("");
-            incomeField.setText("");
-            deductionField.setText("");
-            resultArea.setText("");
-        });
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
+        add(mainPanel);
 
-        setLayout(new BorderLayout(10, 10));
-        add(title, BorderLayout.NORTH);
-        add(panel, BorderLayout.CENTER);
-        add(scrollPane, BorderLayout.SOUTH);
-
-        setVisible(true);
+        estimateButton.addActionListener(e -> estimateTax());
+        detectButton.addActionListener(e -> detectDetails());
+        clearButton.addActionListener(e -> clearFields());
+        exitButton.addActionListener(e -> System.exit(0));
     }
 
-    public void actionPerformed(ActionEvent e) {
+    private double[] readIncomeDetails() {
+        String name = nameField.getText().trim();
+        String incomeText = incomeField.getText().trim();
+        String deductionText = deductionField.getText().trim();
+
+        if (name.isEmpty() || incomeText.isEmpty()
+                || deductionText.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Please fill in all three fields."
+            );
+        }
+
+        double income;
+        double deductions;
+
         try {
-            String name = nameField.getText().trim();
-            double income = Double.parseDouble(incomeField.getText());
-            double deduction = Double.parseDouble(deductionField.getText());
+            income = Double.parseDouble(
+                    incomeText.replace(",", "").replace(" ", "")
+            );
 
-            if (name.isEmpty()) {
-                JOptionPane.showMessageDialog(
-                    this, "Please enter the taxpayer name."
+            deductions = Double.parseDouble(
+                    deductionText.replace(",", "").replace(" ", "")
+            );
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(
+                    "Enter valid numeric income and deductions."
+            );
+        }
+
+        if (!Double.isFinite(income)
+                || !Double.isFinite(deductions)) {
+            throw new IllegalArgumentException(
+                    "Enter finite numeric values only."
+            );
+        }
+
+        if (income < 0 || deductions < 0) {
+            throw new IllegalArgumentException(
+                    "Income and deductions cannot be negative."
+            );
+        }
+
+        if (deductions > income) {
+            throw new IllegalArgumentException(
+                    "Deductions cannot exceed annual income."
+            );
+        }
+
+        return new double[] { income, deductions };
+    }
+
+    private double calculateTax(double taxableIncome) {
+        // Illustrative demo slabs only, not current official tax rules.
+        double tax = 0;
+
+        if (taxableIncome > 1500000) {
+            tax += (taxableIncome - 1500000) * 0.30;
+            taxableIncome = 1500000;
+        }
+
+        if (taxableIncome > 1200000) {
+            tax += (taxableIncome - 1200000) * 0.20;
+            taxableIncome = 1200000;
+        }
+
+        if (taxableIncome > 900000) {
+            tax += (taxableIncome - 900000) * 0.15;
+            taxableIncome = 900000;
+        }
+
+        if (taxableIncome > 600000) {
+            tax += (taxableIncome - 600000) * 0.10;
+            taxableIncome = 600000;
+        }
+
+        if (taxableIncome > 300000) {
+            tax += (taxableIncome - 300000) * 0.05;
+        }
+
+        return tax;
+    }
+
+    private String formatRupees(double amount) {
+        NumberFormat formatter =
+                NumberFormat.getCurrencyInstance(
+                        new Locale("en", "IN")
                 );
-                return;
-            }
 
-            if (income < 0 || deduction < 0) {
-                JOptionPane.showMessageDialog(
-                    this, "Income and deductions cannot be negative."
-                );
-                return;
-            }
+        return formatter.format(amount);
+    }
 
-            if (deduction > income) {
-                JOptionPane.showMessageDialog(
-                    this, "Deductions cannot exceed annual income."
-                );
-                return;
-            }
+    private void estimateTax() {
+        try {
+            double[] details = readIncomeDetails();
 
-            TaxPayer taxpayer = new TaxPayer(name, income, deduction);
-
-            double taxableIncome = taxpayer.calculateTaxableIncome();
-            double tax = taxpayer.calculateTax();
+            double income = details[0];
+            double deductions = details[1];
+            double taxableIncome = income - deductions;
+            double tax = calculateTax(taxableIncome);
 
             resultArea.setText(
-                "===== INCOME TAX REPORT =====\n\n" +
-                "Taxpayer Name   : " + name + "\n" +
-                String.format("Annual Income   : Rs. %.2f%n", income) +
-                String.format("Total Deductions: Rs. %.2f%n", deduction) +
-                String.format("Taxable Income
-```
+                    "INCOME TAX ESTIMATION REPORT\n"
+                    + "--------------------------------------\n"
+                    + "Taxpayer Name : "
+                    + nameField.getText().trim() + "\n"
+                    + "Annual Income : "
+                    + formatRupees(income) + "\n"
+                    + "Deductions    : "
+                    + formatRupees(deductions) + "\n"
+                    + "Taxable Income: "
+                    + formatRupees(taxableIncome) + "\n"
+                    + "Estimated Tax : "
+                    + formatRupees(tax) + "\n"
+                    + "--------------------------------------\n"
+                    + "DEMO ESTIMATE ONLY\n"
+                    + "Actual tax may differ under official rules."
+            );
+
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Input Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    private void detectDetails() {
+        try {
+            double[] details = readIncomeDetails();
+
+            double income = details[0];
+            double deductions = details[1];
+
+            resultArea.setText(
+                    "INCOME DETAILS VERIFICATION\n"
+                    + "--------------------------------------\n"
+                    + "Taxpayer Name: "
+                    + nameField.getText().trim() + "\n"
+                    + "Income Entry: VALID\n"
+                    + "Deduction Entry: VALID\n"
+                    + "Income-Deduction Check: PASSED\n"
+                    + "--------------------------------------\n"
+                    + "Taxable Income: "
+                    + formatRupees(income - deductions) + "\n"
+                    + "Verification Status: INPUTS VALID\n\n"
+                    + "Note: This program checks entered values only.\n"
+                    + "It does not detect actual tax fraud."
+            );
+
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Verification Failed",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            resultArea.setText(
+                    "VERIFICATION FAILED\n"
+                    + "Please correct the entered details."
+            );
+        }
+    }
+
+    private void clearFields() {
+        nameField.setText("");
+        incomeField.setText("");
+        deductionField.setText("");
+        resultArea.setText("");
+        nameField.requestFocusInWindow();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            IncomeTaxSystem app = new IncomeTaxSystem();
+            app.setVisible(true);
+        });
+    }
+}
